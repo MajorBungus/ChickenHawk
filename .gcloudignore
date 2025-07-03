@@ -1,0 +1,29 @@
+# Ignore everything ignored by Git
+.git
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Logs and local data
+*.log
+
+# Secrets or environment files
+.env
+.env.*
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# OS/system files
+.DS_Store
+Thumbs.db
+
+# Local virtual environments
+venv/
+.venv/
+.env/
