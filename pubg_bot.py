@@ -4,9 +4,13 @@ import asyncio
 import datetime
 from collections import defaultdict
 
-# Insert your Discord bot token and PUBG API key here
-DISCORD_BOT_TOKEN = 'MTM5MDM1MTY0NTA3NzkzNDEzMg.GfbLAd.hY1ByF9QEGTghEYjkEjs-Ur7zQMatYpb46zIsg'
-PUBG_API_KEY = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJhYmM1NTgwMC0zYTRlLTAxM2UtYTZlNy0wYWJkN2RiYTM0NDYiLCJpc3MiOiJnYW1lbG9ja2VyIiwiaWF0IjoxNzUxNTU1ODExLCJwdWIiOiJibHVlaG9sZSIsInRpdGxlIjoicHViZyIsImFwcCI6InBlY2tpbmctb3JkZXIifQ.SOVVI-5m4J1HqwPRkMoni0AXuuAGNrb-dLakj5Gr9io'
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+PUBG_API_KEY = os.getenv('PUBG_API_KEY')
 
 
 intents = discord.Intents.default()
