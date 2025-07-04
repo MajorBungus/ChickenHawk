@@ -114,6 +114,60 @@
       font-size: 0.9rem;
       color: #888;
     }
+  .features {
+  padding: 4rem 2rem;
+  background: #111;
+  color: #fff;
+  text-align: center;
+}
+
+.features h2 {
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.features .highlight {
+  color: #a96fff;
+}
+
+.feature-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.feature-card {
+  background: #1a1a1a;
+  padding: 2rem;
+  border-radius: 15px;
+  width: 300px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+}
+
+.icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+  color: #e3dfff;
+}
+
+.feature-card p {
+  color: #ccc;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
   </style>
 </head>
 <body>
@@ -125,22 +179,26 @@
   </header>
 
   <section class="features">
-    <h2>Why Choose ChickenHawk?</h2>
-    <div class="feature-grid">
-      <div class="feature">
-        <h3>⚡ Instant Stats</h3>
-        <p>Get live match summaries and KD ratios right after you finish the game.</p>
-      </div>
-      <div class="feature">
-        <h3>🧠 Smart Filters</h3>
-        <p>Track just your squad or get notified when someone hits a personal best.</p>
-      </div>
-      <div class="feature">
-        <h3>📈 Daily Reports</h3>
-        <p>Wake up to your daily kill count and damage logs in your favorite channel.</p>
-      </div>
+  <h2>🔥 Why Choose <span class="highlight">ChickenHawk</span>?</h2>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="icon">🪖</div>
+      <h3>Live Stats</h3>
+      <p>Get real-time match summaries, including kills, deaths, and damage — posted instantly in Discord.</p>
     </div>
-  </section>
+    <div class="feature-card">
+      <div class="icon">🔍</div>
+      <h3>Match Lookup</h3>
+      <p>Pull up your squad's latest game with a simple command. No setup, no hassle.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📊</div>
+      <h3>K/D Tracking</h3>
+      <p>Check your lifetime kills, deaths, and more — instantly updated with every match.</p>
+    </div>
+  </div>
+</section>
+
 
   <footer>
     &copy; 2025 ChickenHawk. All rights reserved.
