@@ -2,59 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChickenHawk Bot</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: #0b0c10;
-      color: #f1f1f1;
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      text-align: center;
-    }
-    h1 {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-    p {
-      font-size: 1.2rem;
-      max-width: 600px;
-      margin: 0 auto 2rem;
-    }
-    .invite-button {
-      background: #7289da;
-      color: white;
-      padding: 1rem 2rem;
-      border: none;
-      border-radius: 0.5rem;
-      font-size: 1.2rem;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background 0.3s ease;
-    }
-    .invite-button:hover {
-      background: #5b6eae;
-    }
-  </style>
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
 </head>
 <body>
-  <h1>🐔 ChickenHawk Bot</h1>
-  <p>
-    PUBG Discord bot delivering real-time stats for you and your squad. Lightweight, deadly, and always watching.
-  </p>
-  <a
-    class="invite-button"
-    href="https://discord.com/oauth2/authorize?client_id=1390351645077934132&scope=bot&permissions=274878123008"
-    target="_blank"
-  >
-    ➕ Invite to Your Server
-  </a>
+  <div class="hero">
+    <img src="chickenhawk-logo.png" alt="ChickenHawk Logo" class="logo" />
+    <h1>ChickenHawk Bot</h1>
+    <p class="tagline">
+      PUBG Discord bot delivering real-time stats for you and your squad.<br>
+      Lightweight, deadly, and always watching.
+    </p>
+    <a href="https://discord.com/oauth2/authorize?client_id=1390351645077934132&scope=bot%20applications.commands&permissions=274878123008" class="cta-button">
+      ➕ Invite to Your Server
+    </a>
+  </div>
 </body>
 </html>
