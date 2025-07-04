@@ -4,20 +4,146 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChickenHawk Bot</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <style>
+    :root {
+      --primary: #8f5cf3;
+      --background: #1a1a1d;
+      --text: #ffffff;
+      --accent: #ffcc00;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--background);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), #2d2d4f);
+      padding: 4rem 2rem 6rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::after {
+      content: "";
+      position: absolute;
+      bottom: -40px;
+      left: 0;
+      width: 100%;
+      height: 80px;
+      background: white;
+      border-radius: 100% / 20%;
+    }
+
+    .logo {
+      max-width: 220px;
+      margin: 0 auto 2rem;
+      display: block;
+      z-index: 1;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    p.tagline {
+      font-size: 1.25rem;
+      color: #dddddd;
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+
+    .cta-button {
+      background: var(--accent);
+      color: #1a1a1d;
+      padding: 1rem 2rem;
+      font-weight: bold;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .cta-button:hover {
+      background: #ffdf40;
+    }
+
+    section.features {
+      padding: 5rem 2rem;
+      background: white;
+      color: #1a1a1d;
+      text-align: center;
+    }
+
+    section.features h2 {
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .feature {
+      background: #f4f4f4;
+      padding: 2rem;
+      border-radius: 12px;
+    }
+
+    footer {
+      padding: 2rem;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #888;
+    }
+  </style>
 </head>
 <body>
-  <div class="hero">
-    <img src="chickenhawk-logo.png" alt="ChickenHawk Logo" class="logo" />
+  <header>
+    <img src="chickenhawk-logo.png" alt="ChickenHawk Logo" class="logo">
     <h1>ChickenHawk Bot</h1>
-    <p class="tagline">
-      PUBG Discord bot delivering real-time stats for you and your squad.<br>
-      Lightweight, deadly, and always watching.
-    </p>
-    <a href="https://discord.com/oauth2/authorize?client_id=1390351645077934132&scope=bot%20applications.commands&permissions=274878123008" class="cta-button">
-      ➕ Invite to Your Server
-    </a>
-  </div>
+    <p class="tagline">Lightweight. Deadly. Always Watching.<br>Real-time PUBG stats for your squad – with flair.</p>
+    <a class="cta-button" href="https://discord.com/oauth2/authorize?client_id=1390351645077934132&scope=bot&permissions=274878123008">+ Add to Discord</a>
+  </header>
+
+  <section class="features">
+    <h2>Why Choose ChickenHawk?</h2>
+    <div class="feature-grid">
+      <div class="feature">
+        <h3>⚡ Instant Stats</h3>
+        <p>Get live match summaries and KD ratios right after you finish the game.</p>
+      </div>
+      <div class="feature">
+        <h3>🧠 Smart Filters</h3>
+        <p>Track just your squad or get notified when someone hits a personal best.</p>
+      </div>
+      <div class="feature">
+        <h3>📈 Daily Reports</h3>
+        <p>Wake up to your daily kill count and damage logs in your favorite channel.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    &copy; 2025 ChickenHawk. All rights reserved.
+  </footer>
 </body>
 </html>
