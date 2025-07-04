@@ -24,6 +24,7 @@
       align-items: center;
       justify-content: center;
       padding: 3rem 1rem;
+      overflow: hidden;
     }
 
     .hero {
@@ -34,12 +35,50 @@
       text-align: left;
       max-width: 1200px;
       gap: 2rem;
+      position: relative;
+    }
+
+    .logo-container {
+      position: relative;
     }
 
     .logo {
       max-width: 320px;
       animation: pulse 2s infinite;
       filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.1));
+      position: relative;
+      z-index: 2;
+    }
+
+    .particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .particle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: #ff4f4f;
+      border-radius: 50%;
+      opacity: 0;
+      animation: explode 1.2s infinite ease-in-out;
+    }
+
+    @keyframes explode {
+      0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--x), var(--y)) scale(0);
+        opacity: 0;
+      }
     }
 
     @keyframes pulse {
@@ -55,7 +94,7 @@
 
     .hero-title {
       font-family: 'Orbitron', sans-serif;
-      font-size: 5rem;
+      font-size: 6rem;
       color: #b88bff;
       text-shadow: 0 0 25px rgba(184, 139, 255, 0.6), 0 0 5px rgba(255, 255, 255, 0.05);
       margin-bottom: 1rem;
@@ -149,7 +188,17 @@
 
 <body>
   <div class="hero">
-    <img src="chickenhawk-logo.png" alt="ChickenHawk Logo" class="logo" />
+    <div class="logo-container">
+      <img src="chickenhawk-logo.png" alt="ChickenHawk Logo" class="logo" />
+      <div class="particles">
+        <!-- Random particle positions using inline styles -->
+        <div class="particle" style="--x: 50px; --y: -70px;"></div>
+        <div class="particle" style="--x: -40px; --y: -100px;"></div>
+        <div class="particle" style="--x: 60px; --y: 80px;"></div>
+        <div class="particle" style="--x: -80px; --y: 60px;"></div>
+        <div class="particle" style="--x: 30px; --y: -120px;"></div>
+      </div>
+    </div>
     <div class="hero-text">
       <h1 class="hero-title">CHICKEN<br>HAWK</h1>
       <p class="hero-sub">PUBG Discord tool delivering real-time stats for you and your squad.<br>Lightweight, deadly, and always watching.</p>
