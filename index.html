@@ -1,207 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChickenHawk Bot</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <title>ChickenHawk</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rubik&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --primary: #8f5cf3;
-      --background: #1a1a1d;
-      --text: #ffffff;
-      --accent: #ffcc00;
-    }
-
     * {
-      box-sizing: border-box;
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
     }
 
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: var(--background);
-      color: var(--text);
-      overflow-x: hidden;
+      font-family: 'Rubik', sans-serif;
+      background: radial-gradient(circle at center, #1b102e 0%, #0c0c0e 100%);
+      color: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem;
     }
 
-    header {
-      background: linear-gradient(135deg, var(--primary), #2d2d4f);
-      padding: 4rem 2rem 6rem;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    header::after {
-      content: "";
-      position: absolute;
-      bottom: -40px;
-      left: 0;
-      width: 100%;
-      height: 80px;
-      background: white;
-      border-radius: 100% / 20%;
+    .hero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      text-align: left;
+      max-width: 1200px;
+      gap: 2rem;
     }
 
     .logo {
-      max-width: 220px;
-      margin: 0 auto 2rem;
-      display: block;
-      z-index: 1;
+      max-width: 320px;
+      animation: pulse 2s infinite;
     }
 
-    h1 {
-      font-size: 3rem;
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.03); opacity: 0.95; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .hero-text {
+      max-width: 500px;
+    }
+
+    .hero-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 4rem;
+      color: #b88bff;
+      text-shadow: 0 0 20px rgba(184, 139, 255, 0.5);
       margin-bottom: 1rem;
+      line-height: 1;
     }
 
-    p.tagline {
-      font-size: 1.25rem;
-      color: #dddddd;
-      max-width: 600px;
-      margin: 0 auto 2rem;
+    .hero-sub {
+      font-size: 1.2rem;
+      color: #ccc;
+      margin-bottom: 2rem;
     }
 
     .cta-button {
-      background: var(--accent);
-      color: #1a1a1d;
-      padding: 1rem 2rem;
-      font-weight: bold;
+      padding: 1rem 2.2rem;
       font-size: 1.1rem;
-      border-radius: 8px;
+      background: #7a5cff;
+      color: white;
       border: none;
-      cursor: pointer;
-      transition: background 0.3s ease;
+      border-radius: 10px;
       text-decoration: none;
+      font-weight: bold;
+      transition: background 0.3s ease, transform 0.2s;
+      box-shadow: 0 0 14px rgba(122, 92, 255, 0.5);
       display: inline-block;
     }
 
     .cta-button:hover {
-      background: #ffdf40;
+      background: #9e7dff;
+      transform: translateY(-2px);
     }
 
-    section.features {
-      padding: 5rem 2rem;
-      background: white;
-      color: #1a1a1d;
+    .features-section {
+      margin-top: 5rem;
       text-align: center;
     }
 
-    section.features h2 {
-      font-size: 2.5rem;
+    .features-title {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #e6d3ff;
       margin-bottom: 2rem;
     }
 
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 2rem;
-      max-width: 1000px;
-      margin: 0 auto;
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1.5rem;
     }
 
-    .feature {
-      background: #f4f4f4;
-      padding: 2rem;
+    .feature-card {
+      background: #1e1e22;
+      padding: 1.5rem;
       border-radius: 12px;
-    }
-
-    footer {
-      padding: 2rem;
+      box-shadow: 0 0 15px rgba(122, 92, 255, 0.1);
+      max-width: 260px;
       text-align: center;
-      font-size: 0.9rem;
-      color: #888;
     }
-  .features {
-  padding: 4rem 2rem;
-  background: #111;
-  color: #fff;
-  text-align: center;
-}
 
-.features h2 {
-  font-size: 2.5rem;
-  margin-bottom: 2rem;
-}
+    .feature-card h3 {
+      color: #ffffff;
+      margin-bottom: 0.5rem;
+      font-size: 1.1rem;
+    }
 
-.features .highlight {
-  color: #a96fff;
-}
-
-.feature-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
-  justify-content: center;
-}
-
-.feature-card {
-  background: #1a1a1a;
-  padding: 2rem;
-  border-radius: 15px;
-  width: 300px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.feature-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
-}
-
-.icon {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-}
-
-.feature-card h3 {
-  font-size: 1.4rem;
-  margin-bottom: 0.5rem;
-  color: #e3dfff;
-}
-
-.feature-card p {
-  color: #ccc;
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-
+    .feature-card p {
+      font-size: 0.95rem;
+      color: #aaa;
+    }
   </style>
 </head>
-<body>
-  <header>
-    <img src="chickenhawk-logo.png" alt="ChickenHawk Logo" class="logo">
-    <h1>ChickenHawk Bot</h1>
-    <p class="tagline">Lightweight. Deadly. Always Watching.<br>Real-time PUBG stats for your squad – with flair.</p>
-    <a class="cta-button" href="https://discord.com/oauth2/authorize?client_id=1390351645077934132&scope=bot&permissions=274878123008">+ Add to Discord</a>
-  </header>
 
-  <section class="features">
-  <h2>🔥 Why Choose <span class="highlight">ChickenHawk</span>?</h2>
-  <div class="feature-grid">
-    <div class="feature-card">
-      <div class="icon">🪖</div>
-      <h3>Live Stats</h3>
-      <p>Get real-time match summaries, including kills, deaths, and damage — posted instantly in Discord.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">🔍</div>
-      <h3>Match Lookup</h3>
-      <p>Pull up your squad's latest game with a simple command. No setup, no hassle.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">📊</div>
-      <h3>K/D Tracking</h3>
-      <p>Check your lifetime kills, deaths, and more — instantly updated with every match.</p>
+<body>
+  <div class="hero">
+    <img src="chickenhawk-logo.png" alt="ChickenHawk Logo" class="logo" />
+    <div class="hero-text">
+      <h1 class="hero-title">CHICKEN<br>HAWK</h1>
+      <p class="hero-sub">PUBG Discord tool delivering real-time stats for you and your squad.<br>Lightweight, deadly, and always watching.</p>
+      <a href="https://discord.com/oauth2/authorize?client_id=1390351645077934132&scope=bot&permissions=274878123008" class="cta-button">➕ Add to Discord</a>
     </div>
   </div>
-</section>
 
-
-  <footer>
-    &copy; 2025 ChickenHawk. All rights reserved.
-  </footer>
+  <section class="features-section">
+    <h2 class="features-title">Why Choose ChickenHawk?</h2>
+    <div class="features">
+      <div class="feature-card">
+        <h3>📊 Live K/D Ratios</h3>
+        <p>Instantly fetch your Last 10, Season, and Lifetime stats directly in Discord.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🎯 Precision Lookups</h3>
+        <p>Query detailed stats on any PUBG player using their name.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🤝 Teammate Recon</h3>
+        <p>View recent squads and teammates from your latest matches.</p>
+      </div>
+    </div>
+  </section>
 </body>
+
 </html>
