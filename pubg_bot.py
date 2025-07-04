@@ -33,7 +33,7 @@ map_name_mapping = {
     "Chimera_Main": ("Paramo", "🌋"),
     "Tiger_Main": ("Taego", "🐟"),
     "Kiki_Main": ("Deston", "🏢"),
-    "Rondo_Main": ("Rondo", "⛩️")
+    "Neon_Main": ("Rondo", "⛩️")
 }
 
 @client.event
