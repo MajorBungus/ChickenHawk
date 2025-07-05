@@ -86,11 +86,13 @@ async def fetch_match_data(player_name):
 
         async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}', headers=HEADERS) as resp:
             data = await resp.json()
-match_data = data['data']
-if 'matches' not in match_data.get('relationships', {}):
-    raise Exception(f"No match data found for {player_name}.")
+            match_data = data['data']
 
-match_ids = [match['id'] for match in match_data['relationships']['matches']['data'][:10]]
+            if 'matches' not in match_data.get('relationships', {}):
+            raise Exception(f"No match data found for {player_name}.")
+
+            match_ids = [match['id'] for match in match_data['relationships']['matches']['data'][:10]]
+
 
         matches = []
         for match_id in match_ids:
