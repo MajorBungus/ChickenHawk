@@ -4,16 +4,16 @@ import asyncio
 import datetime
 from rlapi import Client as RLClient
 from collections import defaultdict
-
 from dotenv import load_dotenv
 import os
 
+# Load environment variables
 load_dotenv()
 
 DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 PUBG_API_KEY = os.getenv('PUBG_API_KEY')
 
-
+# Set up Discord client with intents
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
@@ -21,13 +21,16 @@ client = discord.Client(intents=intents)
 # Cache for player name to account ID
 account_id_cache = {}
 
+# Rocket League API client
 rl_client = RLClient()
 
+# PUBG API headers
 HEADERS = {
     'Authorization': f'Bearer {PUBG_API_KEY}',
     'Accept': 'application/vnd.api+json'
 }
 
+# PUBG map name mapping
 map_name_mapping = {
     "Baltic_Main": ("Erangel", "🌲"),
     "Desert_Main": ("Miramar", "🌵"),
@@ -48,82 +51,116 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    # --- PUBG COMMANDS ---
-    if message.content.startswith('!pubgstats') or message.content.startswith('!pubglog') or message.content.startswith('!pubgsummary'):
-        parts = message.content.split()
+    content = message.content
+
+    if content.startswith(('!pubgstats', '!pubglog', '!pubgsummary')):
+        parts = content.split()
         if len(parts) < 2:
             await send_usage_instructions(message.channel)
             return
 
         player_name = parts[1]
-        print(f"Author: {message.author} | Content: '{message.content}'")
+        print(f"Author: {message.author} | Content: '{content}'")
 
-        if message.content.startswith('!pubgstats'):
+        if content.startswith('!pubgstats'):
             await message.channel.send(f"Fetching all PUBG stats for {player_name}... please wait ⏳")
             await send_stats_embed(player_name, message)
             await send_season_embed(player_name, message)
             await send_lifetime_embed(player_name, message)
 
-        elif message.content.startswith('!pubglog'):
+        elif content.startswith('!pubglog'):
             await message.channel.send(f"Fetching last 10 matches for {player_name}... please wait ⏳")
             await send_log_embed(player_name, message)
 
-        elif message.content.startswith('!pubgsummary'):
+        elif content.startswith('!pubgsummary'):
             await message.channel.send(f"Fetching full PUBG summary for {player_name}... please wait ⏳")
             await send_stats_embed(player_name, message)
             await send_log_embed(player_name, message)
             await send_season_embed(player_name, message)
             await send_lifetime_embed(player_name, message)
 
-    # --- RL LOG COMMAND ---
-    elif message.content.startswith('!rllog'):
-        await message.channel.typing()
-        try:
-            player_name = message.content.split(' ', 1)[1]
-            player = await rl_client.find_player(player_name)
-            match_history = await player.get_match_history(limit=10)
+    elif content.startswith('!rllog'):
+        await handle_rl_log(message)
 
-            if not match_history:
-                await message.channel.send("No Rocket League match history found for this player.")
-                return
-
-            description = ""
-            for i, match in enumerate(match_history, 1):
-                result = "✅ Win" if match.get('won') else "❌ Loss"
-                rank = match.get('rank', 'Unranked')
-                goals = match.get('goals', 0)
-                assists = match.get('assists', 0)
-                saves = match.get('saves', 0)
-                demos = match.get('demos', 0)
-
-                description += (
-                    f"**Match {i} – {result}**\n"
-                    f"Rank: `{rank}`\n"
-                    f"Goals: `{goals}` | Assists: `{assists}` | Saves: `{saves}` | Demos: `{demos}`\n\n"
-                )
-
-            embed = discord.Embed(
-                title=f"Rocket League Match Log: {player_name}",
-                description=description.strip(),
-                color=discord.Color.orange()
-            )
-            await message.channel.send(embed=embed)
-
-        except Exception as e:
-            await message.channel.send(f"⚠️ Error fetching Rocket League match log: {e}")
-
-    # --- RL STATS COMMAND ---
-    elif message.content.startswith('!rlstats'):
-        parts = message.content.split()
+    elif content.startswith('!rlstats'):
+        parts = content.split()
         if len(parts) < 2:
             await message.channel.send("Usage: `!rlstats <PlayerName>`")
             return
 
         player_name = parts[1]
         await message.channel.send(f"Fetching Rocket League stats for {player_name}... please wait 🏎️")
-        await send_rocket_stats_embed(player_name, message.channel)
+        await send_rlstats_embeds(player_name, message.channel)
 
 
+async def send_stats_embed(player_name, message):
+    try:
+        matches = await fetch_match_data(player_name)
+
+        total_kills = sum(m['kills'] for m in matches)
+        total_deaths = sum(m['deaths'] for m in matches)
+        kd_ratio = round(total_kills / total_deaths, 2) if total_deaths > 0 else total_kills
+        most_kills = max(m['kills'] for m in matches)
+
+        embed = discord.Embed(title=f"{player_name} — Last 10 Matches (Summary)", color=0xFFD700)
+        embed.add_field(name="K/D", value=str(kd_ratio), inline=False)
+        embed.add_field(name="Most Kills", value=str(most_kills), inline=False)
+        embed.add_field(name="Total Kills", value=str(total_kills), inline=False)
+        embed.add_field(name="Total Deaths", value=str(total_deaths), inline=False)
+        await message.channel.send(embed=embed)
+        print(f"[SUCCESS] Sent high-level summary for {player_name}")
+    except Exception as e:
+        error_msg = str(e)
+        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
+            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
+        else:
+            await message.channel.send(f"⚠️ Error: {e}")
+
+
+async def send_season_embed(player_name, message):
+    try:
+        async with aiohttp.ClientSession() as session:
+            if player_name not in account_id_cache:
+                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
+                    data = await resp.json()
+                    account_id = data['data'][0]['id']
+                    account_id_cache[player_name] = account_id
+            else:
+                account_id = account_id_cache[player_name]
+
+            async with session.get('https://api.pubg.com/shards/steam/seasons', headers=HEADERS) as resp:
+                season_data = await resp.json()
+                current_season = next((s['id'] for s in season_data['data'] if s['attributes']['isCurrentSeason']), None)
+
+            async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}/seasons/{current_season}', headers=HEADERS) as resp:
+                data = await resp.json()
+                stats = data['data']['attributes']['gameModeStats'].get('squad-fpp') or {}
+                games = stats.get('roundsPlayed', 0)
+                kills = stats.get('kills', 0)
+                deaths = stats.get('losses', 0)
+                kd = round(kills / deaths, 2) if deaths > 0 else kills
+
+            embed = discord.Embed(title=f"{player_name} — Current Season", color=0x3399FF)
+            embed.add_field(name="Games Played", value=str(games), inline=False)
+            embed.add_field(name="K/D", value=str(kd), inline=False)
+            await message.channel.send(embed=embed)
+            print(f"[SUCCESS] Sent season stats for {player_name}")
+    except Exception as e:
+        error_msg = str(e)
+        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
+            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
+        else:
+            await message.channel.send(f"⚠️ Error: {e}")
+
+# Full implementations from `pubg_bot (3).py` including:
+# - fetch_match_data
+# - send_stats_embed
+# - send_season_embed
+# - send_lifetime_embed
+# - send_log_embed
+# - send_usage_instructions
+# - send_rlstats_embeds
+# - handle_rl_log
 
 async def fetch_match_data(player_name):
     async with aiohttp.ClientSession() as session:
@@ -180,64 +217,6 @@ async def fetch_match_data(player_name):
 
         return matches
 
-async def send_stats_embed(player_name, message):
-    try:
-        matches = await fetch_match_data(player_name)
-
-        total_kills = sum(m['kills'] for m in matches)
-        total_deaths = sum(m['deaths'] for m in matches)
-        kd_ratio = round(total_kills / total_deaths, 2) if total_deaths > 0 else total_kills
-        most_kills = max(m['kills'] for m in matches)
-
-        embed = discord.Embed(title=f"{player_name} — Last 10 Matches (Summary)", color=0xFFD700)
-        embed.add_field(name="K/D", value=str(kd_ratio), inline=False)
-        embed.add_field(name="Most Kills", value=str(most_kills), inline=False)
-        embed.add_field(name="Total Kills", value=str(total_kills), inline=False)
-        embed.add_field(name="Total Deaths", value=str(total_deaths), inline=False)
-        await message.channel.send(embed=embed)
-        print(f"[SUCCESS] Sent high-level summary for {player_name}")
-    except Exception as e:
-        error_msg = str(e)
-        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
-            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
-        else:
-            await message.channel.send(f"⚠️ Error: {e}")
-
-async def send_season_embed(player_name, message):
-    try:
-        async with aiohttp.ClientSession() as session:
-            if player_name not in account_id_cache:
-                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
-                    data = await resp.json()
-                    account_id = data['data'][0]['id']
-                    account_id_cache[player_name] = account_id
-            else:
-                account_id = account_id_cache[player_name]
-
-            async with session.get('https://api.pubg.com/shards/steam/seasons', headers=HEADERS) as resp:
-                season_data = await resp.json()
-                current_season = next((s['id'] for s in season_data['data'] if s['attributes']['isCurrentSeason']), None)
-
-            async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}/seasons/{current_season}', headers=HEADERS) as resp:
-                data = await resp.json()
-                stats = data['data']['attributes']['gameModeStats'].get('squad-fpp') or {}
-                games = stats.get('roundsPlayed', 0)
-                kills = stats.get('kills', 0)
-                deaths = stats.get('losses', 0)
-                kd = round(kills / deaths, 2) if deaths > 0 else kills
-
-            embed = discord.Embed(title=f"{player_name} — Current Season", color=0x3399FF)
-            embed.add_field(name="Games Played", value=str(games), inline=False)
-            embed.add_field(name="K/D", value=str(kd), inline=False)
-            await message.channel.send(embed=embed)
-            print(f"[SUCCESS] Sent season stats for {player_name}")
-    except Exception as e:
-        error_msg = str(e)
-        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
-            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
-        else:
-            await message.channel.send(f"⚠️ Error: {e}")
-
 async def send_lifetime_embed(player_name, message):
     try:
         async with aiohttp.ClientSession() as session:
@@ -269,6 +248,7 @@ async def send_lifetime_embed(player_name, message):
         else:
             await message.channel.send(f"⚠️ Error: {e}")
 
+
 async def send_log_embed(player_name, message):
     try:
         matches = await fetch_match_data(player_name)
@@ -281,11 +261,14 @@ async def send_log_embed(player_name, message):
 
             kd = round(m['kills'] / m['deaths'], 2) if m['deaths'] > 0 else m['kills']
             teammates_str = ', '.join(m['teammates']) if m['teammates'] else 'None'
-            match_link = f"\n🔗 [View Match Details](https://pubglookup.com/players/steam/{player_name}/matches/{m['match_id']})"
+            match_link = f"
+🔗 [View Match Details](https://pubglookup.com/players/steam/{player_name}/matches/{m['match_id']})"
 
             value_str = (
-                f"Time Alive: {m['time_alive']}m\n"
-                f"Kills: {m['kills']} | Deaths: {m['deaths']} | Damage: {m['damage']} | **K/D: {kd}**\n"
+                f"Time Alive: {m['time_alive']}m
+"
+                f"Kills: {m['kills']} | Deaths: {m['deaths']} | Damage: {m['damage']} | **K/D: {kd}**
+"
                 f"Teammates: {teammates_str}"
                 f"{match_link}"
             )
@@ -304,7 +287,8 @@ async def send_log_embed(player_name, message):
             await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
         else:
             await message.channel.send(f"⚠️ Error: {e}")
-        
+
+
 async def send_usage_instructions(channel):
     embed = discord.Embed(
         title="🐔 ChickenHawk Command Usage",
@@ -318,6 +302,7 @@ async def send_usage_instructions(channel):
 
     await channel.send(embed=embed)
 
+
 async def send_rlstats_embeds(player_name, channel):
     try:
         player = await rl_client.find_player(player_name)
@@ -326,27 +311,24 @@ async def send_rlstats_embeds(player_name, channel):
         current = stats.season
         lifetime = stats.lifetime
 
-        # Calculate Win %
         current_win_pct = (current.wins / current.games_played * 100) if current.games_played else 0
         lifetime_win_pct = (lifetime.wins / lifetime.games_played * 100) if lifetime.games_played else 0
 
-        # Averages per game (current)
         cur_avg_goals = current.goals / current.games_played if current.games_played else 0
         cur_avg_assists = current.assists / current.games_played if current.games_played else 0
         cur_avg_saves = current.saves / current.games_played if current.games_played else 0
         cur_avg_demos = current.demos / current.games_played if current.games_played else 0
 
-        # Averages per game (lifetime)
         life_avg_goals = lifetime.goals / lifetime.games_played if lifetime.games_played else 0
         life_avg_assists = lifetime.assists / lifetime.games_played if lifetime.games_played else 0
         life_avg_saves = lifetime.saves / lifetime.games_played if lifetime.games_played else 0
         life_avg_demos = lifetime.demos / lifetime.games_played if lifetime.games_played else 0
 
-        # --- CURRENT SEASON EMBED ---
         embed_current = discord.Embed(
-            title=f"{player_name} — Rocket League (Current Season)",
-            color=0x7a5cff
-        )
+        title=f"{player_name} — Rocket League (Current Season)",
+        color=0x7a5cff
+    )
+    embed_current.add_field(name="Rank", value=str(current.rank or "Unknown"), inline=True)
         embed_current.add_field(name="Games Played", value=str(current.games_played), inline=True)
         embed_current.add_field(name="Wins", value=str(current.wins), inline=True)
         embed_current.add_field(name="Win %", value=f"{current_win_pct:.1f}%", inline=True)
@@ -355,11 +337,11 @@ async def send_rlstats_embeds(player_name, channel):
         embed_current.add_field(name="Avg Saves", value=f"{cur_avg_saves:.2f}", inline=True)
         embed_current.add_field(name="Avg Demos", value=f"{cur_avg_demos:.2f}", inline=True)
 
-        # --- LIFETIME EMBED ---
         embed_lifetime = discord.Embed(
-            title=f"{player_name} — Rocket League (Lifetime)",
-            color=0x9e7dff
-        )
+        title=f"{player_name} — Rocket League (Lifetime)",
+        color=0x9e7dff
+    )
+    embed_lifetime.add_field(name="Rank", value=str(lifetime.rank or "Unknown"), inline=True)
         embed_lifetime.add_field(name="Games Played", value=str(lifetime.games_played), inline=True)
         embed_lifetime.add_field(name="Wins", value=str(lifetime.wins), inline=True)
         embed_lifetime.add_field(name="Win %", value=f"{lifetime_win_pct:.1f}%", inline=True)
@@ -376,8 +358,48 @@ async def send_rlstats_embeds(player_name, channel):
         print(f"[ERROR] Rocket League stats fetch failed: {e}")
 
 
+async def handle_rl_log(message):
+    await message.channel.typing()
+    try:
+        player_name = message.content.split(' ', 1)[1]
+        player = await rl_client.find_player(player_name)
+        match_history = await player.get_match_history(limit=10)
 
-    
+        if not match_history:
+            await message.channel.send("No Rocket League match history found for this player.")
+            return
+
+        description = ""
+        for i, match in enumerate(match_history, 1):
+            result = "✅ Win" if match.get('won') else "❌ Loss"
+            rank = match.get('rank', 'Unranked')
+            goals = match.get('goals', 0)
+            assists = match.get('assists', 0)
+            saves = match.get('saves', 0)
+            demos = match.get('demos', 0)
+
+            description += (
+                f"**Match {i} – {result}**
+"
+                f"Rank: `{rank}`
+"
+                f"Goals: `{goals}` | Assists: `{assists}` | Saves: `{saves}` | Demos: `{demos}`
+
+"
+            )
+
+        embed = discord.Embed(
+            title=f"Rocket League Match Log: {player_name}",
+            description=description.strip(),
+            color=discord.Color.orange()
+        )
+        await message.channel.send(embed=embed)
+
+    except Exception as e:
+        await message.channel.send(f"⚠️ Error fetching Rocket League match log: {e}")
+
+
+# FINAL EXECUTION
 if __name__ == '__main__':
-    print("Starting PUBG bot...")
+    print("Starting ChickenHawk bot...")
     client.run(DISCORD_BOT_TOKEN)
