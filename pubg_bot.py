@@ -13,6 +13,11 @@ load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 PUBG_API_KEY = os.getenv('PUBG_API_KEY')
 
+if not DISCORD_BOT_TOKEN:
+    raise ValueError("DISCORD_BOT_TOKEN is not set in the environment.")
+if not PUBG_API_KEY:
+    raise ValueError("PUBG_API_KEY is not set in the environment.")
+
 # Set up Discord client with intents
 intents = discord.Intents.default()
 intents.message_content = True
@@ -171,6 +176,17 @@ async def send_stats_embed(player_name, message):
             await message.channel.send(f"⚠️ Error: {e}")
 
 
+async def send_usage_instructions(channel):
+    await channel.send(
+        "Usage:\n"
+        "`!pubgstats <PlayerName>` - Show PUBG stats\n"
+        "`!pubglog <PlayerName>` - Show last 10 PUBG matches\n"
+        "`!pubgsummary <PlayerName>` - Full PUBG summary\n"
+        "`!rlstats <PlayerName>` - Rocket League stats\n"
+        "`!rllog <PlayerName>` - Rocket League match log"
+    )
+
+
 async def send_log_embed(player_name, message):
     try:
         matches = await fetch_match_data(player_name)
@@ -183,14 +199,11 @@ async def send_log_embed(player_name, message):
 
             kd = round(m['kills'] / m['deaths'], 2) if m['deaths'] > 0 else m['kills']
             teammates_str = ', '.join(m['teammates']) if m['teammates'] else 'None'
-            match_link = f"
-🔗 [View Match Details](https://pubglookup.com/players/steam/{player_name}/matches/{m['match_id']})"
+            match_link = f"\n🔗 [View Match Details](https://pubglookup.com/players/steam/{player_name}/matches/{m['match_id']})"
 
             value_str = (
-                f"Time Alive: {m['time_alive']}m
-"
-                f"Kills: {m['kills']} | Deaths: {m['deaths']} | Damage: {m['damage']} | **K/D: {kd}**
-"
+                f"Time Alive: {m['time_alive']}m\n"
+                f"Kills: {m['kills']} | Deaths: {m['deaths']} | Damage: {m['damage']} | **K/D: {kd}**\n"
                 f"Teammates: {teammates_str}"
                 f"{match_link}"
             )
@@ -359,13 +372,9 @@ async def handle_rl_log(message):
             demos = match.get('demos', 0)
 
             description += (
-                f"**Match {i} – {result}**
-"
-                f"Rank: `{rank}`
-"
-                f"Goals: `{goals}` | Assists: `{assists}` | Saves: `{saves}` | Demos: `{demos}`
-
-"
+                f"**Match {i} – {result}**\n"
+                f"Rank: `{rank}`\n"
+                f"Goals: `{goals}` | Assists: `{assists}` | Saves: `{saves}` | Demos: `{demos}`\n\n"
             )
 
         embed = discord.Embed(
@@ -382,4 +391,6 @@ async def handle_rl_log(message):
 # FINAL EXECUTION
 if __name__ == '__main__':
     print("Starting ChickenHawk bot...")
+    if not DISCORD_BOT_TOKEN:
+        raise ValueError("DISCORD_BOT_TOKEN is not set. Please set it in your environment variables.")
     client.run(DISCORD_BOT_TOKEN)
