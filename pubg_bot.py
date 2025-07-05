@@ -72,71 +72,83 @@ async def on_message(message):
             await message.channel.send(f"❌ Failed to retrieve stats. Error: {e}")
 
 async def fetch_match_data(player_name):
-    async with aiohttp.ClientSession() as session:
-        if player_name not in account_id_cache:
-            url = f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}'
-            print(f"🔍 Fetching player ID from: {url}")
-            async with session.get(url, headers=HEADERS) as resp:
-                print(f"🛠️ Status Code: {resp.status}")
-                raw_text = await resp.text()
-                print(f"📦 Raw Response: {raw_text}")
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Step 1: Get account ID
+            if player_name not in account_id_cache:
+                url = f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}'
+                async with session.get(url, headers=HEADERS) as resp:
+                    if resp.status != 200:
+                        raise Exception(f"Could not fetch player ID for {player_name} (status: {resp.status})")
+                    data = await resp.json()
+                    print("[DEBUG] Player lookup data:", data)
+                    if not data['data']:
+                        raise Exception(f"No data found for {player_name}.")
+                    account_id = data['data'][0]['id']
+                    account_id_cache[player_name] = account_id
+            else:
+                account_id = account_id_cache[player_name]
+
+            # Step 2: Get player match references
+            async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}', headers=HEADERS) as resp:
                 if resp.status != 200:
-                    raise Exception(f"Could not fetch player ID for {player_name} (status: {resp.status})")
+                    raise Exception(f"Failed to fetch player data (status {resp.status})")
                 data = await resp.json()
-                if not data['data']:
-                    raise Exception(f"No data found for {player_name}.")
-                account_id = data['data'][0]['id']
-                account_id_cache[player_name] = account_id
-        else:
-            account_id = account_id_cache[player_name]
+                print("[DEBUG] Player match data:", data)
 
-        url = f'https://api.pubg.com/shards/steam/players/{account_id}'
-        print(f"📦 Getting recent match data from: {url}")
-        async with session.get(url, headers=HEADERS) as resp:
-            data = await resp.json()
-            match_data = data['data']
+                match_data = data['data']
+                if 'matches' not in match_data.get('relationships', {}):
+                    raise Exception(f"No match data found for {player_name}.")
 
-            if 'matches' not in match_data.get('relationships', {}):
-                raise Exception(f"No match data found for {player_name}.")
+                match_ids = [match['id'] for match in match_data['relationships']['matches']['data'][:10]]
 
-            match_ids = [match['id'] for match in match_data['relationships']['matches']['data'][:10]]
+            # Step 3: For each match ID, fetch match details
+            matches = []
+            for match_id in match_ids:
+                async with session.get(f'https://api.pubg.com/shards/steam/matches/{match_id}', headers=HEADERS) as resp:
+                    if resp.status != 200:
+                        print(f"[WARNING] Failed to fetch match {match_id} (status {resp.status})")
+                        continue
+                    match_data = await resp.json()
+                    print(f"[DEBUG] Match data for {match_id}:", match_data)
 
-        matches = []
-        for match_id in match_ids:
-            async with session.get(f'https://api.pubg.com/shards/steam/matches/{match_id}', headers=HEADERS) as resp:
-                match_data = await resp.json()
-                participants = [x for x in match_data['included'] if x['type'] == 'participant']
-                rosters = [x for x in match_data['included'] if x['type'] == 'roster']
-                participant = next((x for x in participants if x['attributes']['stats']['name'].lower() == player_name.lower()), None)
-                if not participant:
-                    continue
-                stats = participant['attributes']['stats']
-                participant_id = participant['id']
-                teammates = []
-                placement = None
-                for roster in rosters:
-                    participant_ids = [p['id'] for p in roster['relationships']['participants']['data']]
-                    if participant_id in participant_ids:
-                        teammates = [x['attributes']['stats']['name'] for x in participants if x['id'] in participant_ids and x['id'] != participant_id]
-                        placement = roster['attributes']['stats']['rank']
-                        break
+                    participants = [x for x in match_data['included'] if x['type'] == 'participant']
+                    rosters = [x for x in match_data['included'] if x['type'] == 'roster']
+                    participant = next((x for x in participants if x['attributes']['stats']['name'].lower() == player_name.lower()), None)
+                    if not participant:
+                        continue
+                    stats = participant['attributes']['stats']
+                    participant_id = participant['id']
+                    teammates = []
+                    placement = None
+                    for roster in rosters:
+                        participant_ids = [p['id'] for p in roster['relationships']['participants']['data']]
+                        if participant_id in participant_ids:
+                            teammates = [x['attributes']['stats']['name'] for x in participants if x['id'] in participant_ids and x['id'] != participant_id]
+                            placement = roster['attributes']['stats']['rank']
+                            break
 
-                map_raw = match_data['data']['attributes']['mapName']
-                map_pretty, map_emoji = map_name_mapping.get(map_raw, (map_raw, ""))
+                    map_raw = match_data['data']['attributes']['mapName']
+                    map_pretty, map_emoji = map_name_mapping.get(map_raw, (map_raw, ""))
 
-                matches.append({
-                    'match_id': match_id,
-                    'placement': placement,
-                    'map': map_pretty,
-                    'map_emoji': map_emoji,
-                    'time_alive': stats['timeSurvived'] // 60,
-                    'kills': stats['kills'],
-                    'deaths': 1 if stats['deathType'] != 'alive' else 0,
-                    'damage': round(stats['damageDealt']),
-                    'teammates': teammates
-                })
+                    matches.append({
+                        'match_id': match_id,
+                        'placement': placement,
+                        'map': map_pretty,
+                        'map_emoji': map_emoji,
+                        'time_alive': stats['timeSurvived'] // 60,
+                        'kills': stats['kills'],
+                        'deaths': 1 if stats['deathType'] != 'alive' else 0,
+                        'damage': round(stats['damageDealt']),
+                        'teammates': teammates
+                    })
 
         return matches
+    except Exception as e:
+        print(f"[ERROR in fetch_match_data] {e}")
+        raise
+
+
 
 
 async def send_stats_embed(player_name, message):
