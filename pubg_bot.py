@@ -75,6 +75,7 @@ async def fetch_match_data(player_name):
             async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
                 if resp.status != 200:
                     raise Exception(f"Could not fetch player ID for {player_name} (status: {resp.status})")
+                print(await resp.text())
                 data = await resp.json()
                 if not data['data']:
                     raise Exception(f"No data found for {player_name}.")
@@ -85,7 +86,11 @@ async def fetch_match_data(player_name):
 
         async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}', headers=HEADERS) as resp:
             data = await resp.json()
-            match_ids = [match['id'] for match in data['data']['relationships']['matches']['data'][:10]]
+match_data = data['data']
+if 'matches' not in match_data.get('relationships', {}):
+    raise Exception(f"No match data found for {player_name}.")
+
+match_ids = [match['id'] for match in match_data['relationships']['matches']['data'][:10]]
 
         matches = []
         for match_id in match_ids:
