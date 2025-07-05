@@ -74,7 +74,12 @@ async def on_message(message):
 async def fetch_match_data(player_name):
     async with aiohttp.ClientSession() as session:
         if player_name not in account_id_cache:
-            async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
+            url = f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}'
+            print(f"🔍 Fetching player ID from: {url}")
+            async with session.get(url, headers=HEADERS) as resp:
+                print(f"🛠️ Status Code: {resp.status}")
+                raw_text = await resp.text()
+                print(f"📦 Raw Response: {raw_text}")
                 if resp.status != 200:
                     raise Exception(f"Could not fetch player ID for {player_name} (status: {resp.status})")
                 data = await resp.json()
@@ -85,7 +90,9 @@ async def fetch_match_data(player_name):
         else:
             account_id = account_id_cache[player_name]
 
-        async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}', headers=HEADERS) as resp:
+        url = f'https://api.pubg.com/shards/steam/players/{account_id}'
+        print(f"📦 Getting recent match data from: {url}")
+        async with session.get(url, headers=HEADERS) as resp:
             data = await resp.json()
             match_data = data['data']
 
@@ -130,6 +137,7 @@ async def fetch_match_data(player_name):
                 })
 
         return matches
+
 
 async def send_stats_embed(player_name, message):
     try:
