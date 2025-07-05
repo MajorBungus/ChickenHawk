@@ -6,21 +6,19 @@ load_dotenv()
 
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-intents = discord.Intents.default()
-intents.message_content = True
-
+intents = discord.Intents.all()  # FULL intents to eliminate doubt
 client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
-    print(f'Logged in as {client.user.name}')
+    print(f'✅ Logged in as {client.user.name}')
 
 @client.event
 async def on_message(message):
+    print(f"📨 Received: {message.content} from {message.author}")
     if message.author == client.user:
         return
-
     if message.content.startswith("!test"):
-        await message.channel.send("✅ ChickenHawk heard you loud and clear.")
+        await message.channel.send("✅ I heard you!")
 
 client.run(TOKEN)
