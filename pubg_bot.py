@@ -12,12 +12,10 @@ load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 PUBG_API_KEY = os.getenv('PUBG_API_KEY')
 
-
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-# Cache for player name to account ID
 account_id_cache = {}
 
 HEADERS = {
@@ -32,8 +30,8 @@ map_name_mapping = {
     "Savage_Main": ("Sanhok", "🏝️"),
     "Chimera_Main": ("Paramo", "🌋"),
     "Tiger_Main": ("Taego", "🐟"),
-    "Kiki_Main": ("Deston", "🏢"),
-    "Neon_Main": ("Rondo", "⛩️")
+    "Kiki_Main": ("Deston", "🏛️"),
+    "Neon_Main": ("Rondo", "⚩️")
 }
 
 @client.event
@@ -54,20 +52,24 @@ async def on_message(message):
         player_name = parts[1]
         print(f"Author: {message.author} | Content: '{message.content}'")
 
-        if message.content.startswith('!pubgstats'):
-            await message.channel.send(f"Fetching all PUBG stats for {player_name}... please wait ⏳")
-            await send_stats_embed(player_name, message)
-            await send_season_embed(player_name, message)
-            await send_lifetime_embed(player_name, message)
-        elif message.content.startswith('!pubglog'):
-            await message.channel.send(f"Fetching last 10 matches for {player_name}... please wait ⏳")
-            await send_log_embed(player_name, message)
-        elif message.content.startswith('!pubgsummary'):
-            await message.channel.send(f"Fetching full PUBG summary for {player_name}... please wait ⏳")
-            await send_stats_embed(player_name, message)
-            await send_log_embed(player_name, message)
-            await send_season_embed(player_name, message)
-            await send_lifetime_embed(player_name, message)
+        try:
+            if message.content.startswith('!pubgstats'):
+                await message.channel.send(f"Fetching all PUBG stats for {player_name}... please wait ⌛")
+                await send_stats_embed(player_name, message)
+                await send_season_embed(player_name, message)
+                await send_lifetime_embed(player_name, message)
+            elif message.content.startswith('!pubglog'):
+                await message.channel.send(f"Fetching last 10 matches for {player_name}... please wait ⌛")
+                await send_log_embed(player_name, message)
+            elif message.content.startswith('!pubgsummary'):
+                await message.channel.send(f"Fetching full PUBG summary for {player_name}... please wait ⌛")
+                await send_stats_embed(player_name, message)
+                await send_log_embed(player_name, message)
+                await send_season_embed(player_name, message)
+                await send_lifetime_embed(player_name, message)
+        except Exception as e:
+            print(f"[ERROR] {e}")
+            await message.channel.send(f"❌ Failed to retrieve stats. Error: {e}")
 
 async def fetch_match_data(player_name):
     async with aiohttp.ClientSession() as session:
@@ -75,7 +77,6 @@ async def fetch_match_data(player_name):
             async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
                 if resp.status != 200:
                     raise Exception(f"Could not fetch player ID for {player_name} (status: {resp.status})")
-                print(await resp.text())
                 data = await resp.json()
                 if not data['data']:
                     raise Exception(f"No data found for {player_name}.")
@@ -89,10 +90,9 @@ async def fetch_match_data(player_name):
             match_data = data['data']
 
             if 'matches' not in match_data.get('relationships', {}):
-            raise Exception(f"No match data found for {player_name}.")
+                raise Exception(f"No match data found for {player_name}.")
 
             match_ids = [match['id'] for match in match_data['relationships']['matches']['data'][:10]]
-
 
         matches = []
         for match_id in match_ids:
