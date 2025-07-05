@@ -2,6 +2,7 @@ import discord
 import aiohttp
 import asyncio
 import datetime
+from rlapi import Client as RLClient
 from collections import defaultdict
 
 from dotenv import load_dotenv
@@ -19,6 +20,8 @@ client = discord.Client(intents=intents)
 
 # Cache for player name to account ID
 account_id_cache = {}
+
+rl_client = RLClient()
 
 HEADERS = {
     'Authorization': f'Bearer {PUBG_API_KEY}',
@@ -45,6 +48,7 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    # --- PUBG COMMANDS ---
     if message.content.startswith('!pubgstats') or message.content.startswith('!pubglog') or message.content.startswith('!pubgsummary'):
         parts = message.content.split()
         if len(parts) < 2:
@@ -59,15 +63,67 @@ async def on_message(message):
             await send_stats_embed(player_name, message)
             await send_season_embed(player_name, message)
             await send_lifetime_embed(player_name, message)
+
         elif message.content.startswith('!pubglog'):
             await message.channel.send(f"Fetching last 10 matches for {player_name}... please wait ⏳")
             await send_log_embed(player_name, message)
+
         elif message.content.startswith('!pubgsummary'):
             await message.channel.send(f"Fetching full PUBG summary for {player_name}... please wait ⏳")
             await send_stats_embed(player_name, message)
             await send_log_embed(player_name, message)
             await send_season_embed(player_name, message)
             await send_lifetime_embed(player_name, message)
+
+    # --- RL LOG COMMAND ---
+    elif message.content.startswith('!rllog'):
+        await message.channel.typing()
+        try:
+            player_name = message.content.split(' ', 1)[1]
+            player = await rl_client.find_player(player_name)
+            match_history = await player.get_match_history(limit=10)
+
+            if not match_history:
+                await message.channel.send("No Rocket League match history found for this player.")
+                return
+
+            description = ""
+            for i, match in enumerate(match_history, 1):
+                result = "✅ Win" if match.get('won') else "❌ Loss"
+                rank = match.get('rank', 'Unranked')
+                goals = match.get('goals', 0)
+                assists = match.get('assists', 0)
+                saves = match.get('saves', 0)
+                demos = match.get('demos', 0)
+
+                description += (
+                    f"**Match {i} – {result}**\n"
+                    f"Rank: `{rank}`\n"
+                    f"Goals: `{goals}` | Assists: `{assists}` | Saves: `{saves}` | Demos: `{demos}`\n\n"
+                )
+
+            embed = discord.Embed(
+                title=f"Rocket League Match Log: {player_name}",
+                description=description.strip(),
+                color=discord.Color.orange()
+            )
+            await message.channel.send(embed=embed)
+
+        except Exception as e:
+            await message.channel.send(f"⚠️ Error fetching Rocket League match log: {e}")
+
+    # --- RL STATS COMMAND ---
+    elif message.content.startswith('!rlstats'):
+        parts = message.content.split()
+        if len(parts) < 2:
+            await message.channel.send("Usage: `!rlstats <PlayerName>`")
+            return
+
+        player_name = parts[1]
+        await message.channel.send(f"Fetching Rocket League stats for {player_name}... please wait 🏎️")
+        await send_rocket_stats_embed(player_name, message.channel)
+
+
 
 async def fetch_match_data(player_name):
     async with aiohttp.ClientSession() as session:
@@ -258,7 +314,69 @@ async def send_usage_instructions(channel):
     embed.add_field(name="!pubgstats <PlayerName>", value="→ Shows stats for last 10 matches, season, and lifetime", inline=False)
     embed.add_field(name="!pubglog <PlayerName>", value="→ Shows detailed log for last 10 matches", inline=False)
     embed.add_field(name="!pubgsummary <PlayerName>", value="→ Shows stats + log", inline=False)
+    embed.add_field(name="!rlstats <PlayerName>", value="→ Rocket League Win % (Season + Lifetime)", inline=False)
+
     await channel.send(embed=embed)
+
+async def send_rlstats_embeds(player_name, channel):
+    try:
+        player = await rl_client.find_player(player_name)
+        stats = player.stats
+
+        current = stats.season
+        lifetime = stats.lifetime
+
+        # Calculate Win %
+        current_win_pct = (current.wins / current.games_played * 100) if current.games_played else 0
+        lifetime_win_pct = (lifetime.wins / lifetime.games_played * 100) if lifetime.games_played else 0
+
+        # Averages per game (current)
+        cur_avg_goals = current.goals / current.games_played if current.games_played else 0
+        cur_avg_assists = current.assists / current.games_played if current.games_played else 0
+        cur_avg_saves = current.saves / current.games_played if current.games_played else 0
+        cur_avg_demos = current.demos / current.games_played if current.games_played else 0
+
+        # Averages per game (lifetime)
+        life_avg_goals = lifetime.goals / lifetime.games_played if lifetime.games_played else 0
+        life_avg_assists = lifetime.assists / lifetime.games_played if lifetime.games_played else 0
+        life_avg_saves = lifetime.saves / lifetime.games_played if lifetime.games_played else 0
+        life_avg_demos = lifetime.demos / lifetime.games_played if lifetime.games_played else 0
+
+        # --- CURRENT SEASON EMBED ---
+        embed_current = discord.Embed(
+            title=f"{player_name} — Rocket League (Current Season)",
+            color=0x7a5cff
+        )
+        embed_current.add_field(name="Games Played", value=str(current.games_played), inline=True)
+        embed_current.add_field(name="Wins", value=str(current.wins), inline=True)
+        embed_current.add_field(name="Win %", value=f"{current_win_pct:.1f}%", inline=True)
+        embed_current.add_field(name="Avg Goals", value=f"{cur_avg_goals:.2f}", inline=True)
+        embed_current.add_field(name="Avg Assists", value=f"{cur_avg_assists:.2f}", inline=True)
+        embed_current.add_field(name="Avg Saves", value=f"{cur_avg_saves:.2f}", inline=True)
+        embed_current.add_field(name="Avg Demos", value=f"{cur_avg_demos:.2f}", inline=True)
+
+        # --- LIFETIME EMBED ---
+        embed_lifetime = discord.Embed(
+            title=f"{player_name} — Rocket League (Lifetime)",
+            color=0x9e7dff
+        )
+        embed_lifetime.add_field(name="Games Played", value=str(lifetime.games_played), inline=True)
+        embed_lifetime.add_field(name="Wins", value=str(lifetime.wins), inline=True)
+        embed_lifetime.add_field(name="Win %", value=f"{lifetime_win_pct:.1f}%", inline=True)
+        embed_lifetime.add_field(name="Avg Goals", value=f"{life_avg_goals:.2f}", inline=True)
+        embed_lifetime.add_field(name="Avg Assists", value=f"{life_avg_assists:.2f}", inline=True)
+        embed_lifetime.add_field(name="Avg Saves", value=f"{life_avg_saves:.2f}", inline=True)
+        embed_lifetime.add_field(name="Avg Demos", value=f"{life_avg_demos:.2f}", inline=True)
+
+        await channel.send(embed=embed_current)
+        await channel.send(embed=embed_lifetime)
+        print(f"[SUCCESS] Sent Rocket League detailed stats for {player_name}")
+    except Exception as e:
+        await channel.send(f"⚠️ Error fetching Rocket League stats: {e}")
+        print(f"[ERROR] Rocket League stats fetch failed: {e}")
+
+
+
     
 if __name__ == '__main__':
     print("Starting PUBG bot...")
