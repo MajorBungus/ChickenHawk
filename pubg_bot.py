@@ -2,7 +2,7 @@ import discord
 import aiohttp
 import asyncio
 import datetime
-from rlapi import Client as RLClient
+from rlapi import Client as RLClient  # Make sure rlapi is installed or comment this out if not needed
 from collections import defaultdict
 from dotenv import load_dotenv
 import os
@@ -97,12 +97,22 @@ async def on_message(message):
         await message.channel.send(f"Fetching Rocket League stats for {player_name}... please wait 🏎️")
         await send_rlstats_embeds(player_name, message.channel)
 
+async def send_usage_instructions(channel):
+    await channel.send(
+        "Usage:\n"
+        "`!pubgstats <PlayerName>` - Show PUBG stats\n"
+        "`!pubglog <PlayerName>` - Show last 10 PUBG matches\n"
+        "`!pubgsummary <PlayerName>` - Full PUBG summary\n"
+        "`!rlstats <PlayerName>` - Rocket League stats\n"
+        "`!rllog <PlayerName>` - Rocket League match log"
+    )
 
 async def fetch_match_data(player_name):
     async with aiohttp.ClientSession() as session:
         if player_name not in account_id_cache:
-            async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
+            async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames}={player_name}', headers=HEADERS) as resp:
                 data = await resp.json()
+                print("PUBG API response for player lookup:", data)  # Debug print
                 if 'data' not in data or not data['data']:
                     raise Exception(f"No data found for {player_name}.")
                 account_id = data['data'][0]['id']
@@ -151,7 +161,6 @@ async def fetch_match_data(player_name):
 
         return matches
 
-
 async def send_stats_embed(player_name, message):
     try:
         matches = await fetch_match_data(player_name)
@@ -174,18 +183,6 @@ async def send_stats_embed(player_name, message):
             await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
         else:
             await message.channel.send(f"⚠️ Error: {e}")
-
-
-async def send_usage_instructions(channel):
-    await channel.send(
-        "Usage:\n"
-        "`!pubgstats <PlayerName>` - Show PUBG stats\n"
-        "`!pubglog <PlayerName>` - Show last 10 PUBG matches\n"
-        "`!pubgsummary <PlayerName>` - Full PUBG summary\n"
-        "`!rlstats <PlayerName>` - Rocket League stats\n"
-        "`!rllog <PlayerName>` - Rocket League match log"
-    )
-
 
 async def send_log_embed(player_name, message):
     try:
@@ -223,12 +220,11 @@ async def send_log_embed(player_name, message):
         else:
             await message.channel.send(f"⚠️ Error: {e}")
 
-
 async def send_season_embed(player_name, message):
     try:
         async with aiohttp.ClientSession() as session:
             if player_name not in account_id_cache:
-                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
+                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames}={player_name}', headers=HEADERS) as resp:
                     data = await resp.json()
                     if 'data' not in data or not data['data']:
                         raise Exception(f"No data found for {player_name}.")
@@ -261,12 +257,11 @@ async def send_season_embed(player_name, message):
         else:
             await message.channel.send(f"⚠️ Error: {e}")
 
-
 async def send_lifetime_embed(player_name, message):
     try:
         async with aiohttp.ClientSession() as session:
             if player_name not in account_id_cache:
-                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
+                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames}={player_name}', headers=HEADERS) as resp:
                     data = await resp.json()
                     if 'data' not in data or not data['data']:
                         raise Exception(f"No data found for {player_name}.")
@@ -294,7 +289,6 @@ async def send_lifetime_embed(player_name, message):
             await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
         else:
             await message.channel.send(f"⚠️ Error: {e}")
-
 
 async def send_rlstats_embeds(player_name, channel):
     try:
@@ -350,7 +344,6 @@ async def send_rlstats_embeds(player_name, channel):
         await channel.send(f"⚠️ Error fetching Rocket League stats: {e}")
         print(f"[ERROR] Rocket League stats fetch failed: {e}")
 
-
 async def handle_rl_log(message):
     await message.channel.typing()
     try:
@@ -386,7 +379,6 @@ async def handle_rl_log(message):
 
     except Exception as e:
         await message.channel.send(f"⚠️ Error fetching Rocket League match log: {e}")
-
 
 # FINAL EXECUTION
 if __name__ == '__main__':
