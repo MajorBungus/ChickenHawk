@@ -123,7 +123,9 @@ async def send_season_embed(player_name, message):
             if player_name not in account_id_cache:
                 async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
                     data = await resp.json()
-                    account_id = data['data'][0]['id']
+                if 'data' not in data or not data['data']:
+                    raise Exception(f"No data found for {player_name}.")
+                account_id = data['data'][0]['id']
                     account_id_cache[player_name] = account_id
             else:
                 account_id = account_id_cache[player_name]
@@ -223,7 +225,9 @@ async def send_lifetime_embed(player_name, message):
             if player_name not in account_id_cache:
                 async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
                     data = await resp.json()
-                    account_id = data['data'][0]['id']
+                if 'data' not in data or not data['data']:
+                    raise Exception(f"No data found for {player_name}.")
+                account_id = data['data'][0]['id']
                     account_id_cache[player_name] = account_id
             else:
                 account_id = account_id_cache[player_name]
