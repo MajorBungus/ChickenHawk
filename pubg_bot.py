@@ -2,23 +2,17 @@ import discord
 import aiohttp
 import asyncio
 import datetime
-from rlapi import Client as RLClient  # Make sure rlapi is installed or comment this out if not needed
 from collections import defaultdict
+
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
 load_dotenv()
 
 DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 PUBG_API_KEY = os.getenv('PUBG_API_KEY')
 
-if not DISCORD_BOT_TOKEN:
-    raise ValueError("DISCORD_BOT_TOKEN is not set in the environment.")
-if not PUBG_API_KEY:
-    raise ValueError("PUBG_API_KEY is not set in the environment.")
 
-# Set up Discord client with intents
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
@@ -26,16 +20,11 @@ client = discord.Client(intents=intents)
 # Cache for player name to account ID
 account_id_cache = {}
 
-# Rocket League API client
-rl_client = RLClient()
-
-# PUBG API headers
 HEADERS = {
     'Authorization': f'Bearer {PUBG_API_KEY}',
     'Accept': 'application/vnd.api+json'
 }
 
-# PUBG map name mapping
 map_name_mapping = {
     "Baltic_Main": ("Erangel", "🌲"),
     "Desert_Main": ("Miramar", "🌵"),
@@ -56,64 +45,38 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    content = message.content
-
-    if content.startswith(('!pubgstats', '!pubglog', '!pubgsummary')):
-        parts = content.split()
+    if message.content.startswith('!pubgstats') or message.content.startswith('!pubglog') or message.content.startswith('!pubgsummary'):
+        parts = message.content.split()
         if len(parts) < 2:
             await send_usage_instructions(message.channel)
             return
 
         player_name = parts[1]
-        print(f"Author: {message.author} | Content: '{content}'")
+        print(f"Author: {message.author} | Content: '{message.content}'")
 
-        if content.startswith('!pubgstats'):
+        if message.content.startswith('!pubgstats'):
             await message.channel.send(f"Fetching all PUBG stats for {player_name}... please wait ⏳")
             await send_stats_embed(player_name, message)
             await send_season_embed(player_name, message)
             await send_lifetime_embed(player_name, message)
-
-        elif content.startswith('!pubglog'):
+        elif message.content.startswith('!pubglog'):
             await message.channel.send(f"Fetching last 10 matches for {player_name}... please wait ⏳")
             await send_log_embed(player_name, message)
-
-        elif content.startswith('!pubgsummary'):
+        elif message.content.startswith('!pubgsummary'):
             await message.channel.send(f"Fetching full PUBG summary for {player_name}... please wait ⏳")
             await send_stats_embed(player_name, message)
             await send_log_embed(player_name, message)
             await send_season_embed(player_name, message)
             await send_lifetime_embed(player_name, message)
 
-    elif content.startswith('!rllog'):
-        await handle_rl_log(message)
-
-    elif content.startswith('!rlstats'):
-        parts = content.split()
-        if len(parts) < 2:
-            await message.channel.send("Usage: `!rlstats <PlayerName>`")
-            return
-
-        player_name = parts[1]
-        await message.channel.send(f"Fetching Rocket League stats for {player_name}... please wait 🏎️")
-        await send_rlstats_embeds(player_name, message.channel)
-
-async def send_usage_instructions(channel):
-    await channel.send(
-        "Usage:\n"
-        "`!pubgstats <PlayerName>` - Show PUBG stats\n"
-        "`!pubglog <PlayerName>` - Show last 10 PUBG matches\n"
-        "`!pubgsummary <PlayerName>` - Full PUBG summary\n"
-        "`!rlstats <PlayerName>` - Rocket League stats\n"
-        "`!rllog <PlayerName>` - Rocket League match log"
-    )
-
 async def fetch_match_data(player_name):
     async with aiohttp.ClientSession() as session:
         if player_name not in account_id_cache:
-            async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames}={player_name}', headers=HEADERS) as resp:
+            async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
+                if resp.status != 200:
+                    raise Exception(f"Could not fetch player ID for {player_name} (status: {resp.status})")
                 data = await resp.json()
-                print("PUBG API response for player lookup:", data)  # Debug print
-                if 'data' not in data or not data['data']:
+                if not data['data']:
                     raise Exception(f"No data found for {player_name}.")
                 account_id = data['data'][0]['id']
                 account_id_cache[player_name] = account_id
@@ -184,6 +147,72 @@ async def send_stats_embed(player_name, message):
         else:
             await message.channel.send(f"⚠️ Error: {e}")
 
+async def send_season_embed(player_name, message):
+    try:
+        async with aiohttp.ClientSession() as session:
+            if player_name not in account_id_cache:
+                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
+                    data = await resp.json()
+                    account_id = data['data'][0]['id']
+                    account_id_cache[player_name] = account_id
+            else:
+                account_id = account_id_cache[player_name]
+
+            async with session.get('https://api.pubg.com/shards/steam/seasons', headers=HEADERS) as resp:
+                season_data = await resp.json()
+                current_season = next((s['id'] for s in season_data['data'] if s['attributes']['isCurrentSeason']), None)
+
+            async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}/seasons/{current_season}', headers=HEADERS) as resp:
+                data = await resp.json()
+                stats = data['data']['attributes']['gameModeStats'].get('squad-fpp') or {}
+                games = stats.get('roundsPlayed', 0)
+                kills = stats.get('kills', 0)
+                deaths = stats.get('losses', 0)
+                kd = round(kills / deaths, 2) if deaths > 0 else kills
+
+            embed = discord.Embed(title=f"{player_name} — Current Season", color=0x3399FF)
+            embed.add_field(name="Games Played", value=str(games), inline=False)
+            embed.add_field(name="K/D", value=str(kd), inline=False)
+            await message.channel.send(embed=embed)
+            print(f"[SUCCESS] Sent season stats for {player_name}")
+    except Exception as e:
+        error_msg = str(e)
+        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
+            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
+        else:
+            await message.channel.send(f"⚠️ Error: {e}")
+
+async def send_lifetime_embed(player_name, message):
+    try:
+        async with aiohttp.ClientSession() as session:
+            if player_name not in account_id_cache:
+                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames]={player_name}', headers=HEADERS) as resp:
+                    data = await resp.json()
+                    account_id = data['data'][0]['id']
+                    account_id_cache[player_name] = account_id
+            else:
+                account_id = account_id_cache[player_name]
+
+            async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}/seasons/lifetime', headers=HEADERS) as resp:
+                data = await resp.json()
+                stats = data['data']['attributes']['gameModeStats'].get('squad-fpp') or {}
+                games = stats.get('roundsPlayed', 0)
+                kills = stats.get('kills', 0)
+                deaths = stats.get('losses', 0)
+                kd = round(kills / deaths, 2) if deaths > 0 else kills
+
+            embed = discord.Embed(title=f"{player_name} — Lifetime Stats", color=0x800080)
+            embed.add_field(name="Games Played", value=str(games), inline=False)
+            embed.add_field(name="K/D", value=str(kd), inline=False)
+            await message.channel.send(embed=embed)
+            print(f"[SUCCESS] Sent lifetime stats for {player_name}")
+    except Exception as e:
+        error_msg = str(e)
+        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
+            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
+        else:
+            await message.channel.send(f"⚠️ Error: {e}")
+
 async def send_log_embed(player_name, message):
     try:
         matches = await fetch_match_data(player_name)
@@ -219,170 +248,18 @@ async def send_log_embed(player_name, message):
             await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
         else:
             await message.channel.send(f"⚠️ Error: {e}")
-
-async def send_season_embed(player_name, message):
-    try:
-        async with aiohttp.ClientSession() as session:
-            if player_name not in account_id_cache:
-                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames}={player_name}', headers=HEADERS) as resp:
-                    data = await resp.json()
-                    if 'data' not in data or not data['data']:
-                        raise Exception(f"No data found for {player_name}.")
-                    account_id = data['data'][0]['id']
-                    account_id_cache[player_name] = account_id
-            else:
-                account_id = account_id_cache[player_name]
-
-            async with session.get('https://api.pubg.com/shards/steam/seasons', headers=HEADERS) as resp:
-                season_data = await resp.json()
-                current_season = next((s['id'] for s in season_data['data'] if s['attributes']['isCurrentSeason']), None)
-
-            async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}/seasons/{current_season}', headers=HEADERS) as resp:
-                data = await resp.json()
-                stats = data['data']['attributes']['gameModeStats'].get('squad-fpp') or {}
-                games = stats.get('roundsPlayed', 0)
-                kills = stats.get('kills', 0)
-                deaths = stats.get('losses', 0)
-                kd = round(kills / deaths, 2) if deaths > 0 else kills
-
-            embed = discord.Embed(title=f"{player_name} — Current Season", color=0x3399FF)
-            embed.add_field(name="Games Played", value=str(games), inline=False)
-            embed.add_field(name="K/D", value=str(kd), inline=False)
-            await message.channel.send(embed=embed)
-            print(f"[SUCCESS] Sent season stats for {player_name}")
-    except Exception as e:
-        error_msg = str(e)
-        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
-            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
-        else:
-            await message.channel.send(f"⚠️ Error: {e}")
-
-async def send_lifetime_embed(player_name, message):
-    try:
-        async with aiohttp.ClientSession() as session:
-            if player_name not in account_id_cache:
-                async with session.get(f'https://api.pubg.com/shards/steam/players?filter[playerNames}={player_name}', headers=HEADERS) as resp:
-                    data = await resp.json()
-                    if 'data' not in data or not data['data']:
-                        raise Exception(f"No data found for {player_name}.")
-                    account_id = data['data'][0]['id']
-                    account_id_cache[player_name] = account_id
-            else:
-                account_id = account_id_cache[player_name]
-
-            async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}/seasons/lifetime', headers=HEADERS) as resp:
-                data = await resp.json()
-                stats = data['data']['attributes']['gameModeStats'].get('squad-fpp') or {}
-                games = stats.get('roundsPlayed', 0)
-                kills = stats.get('kills', 0)
-                deaths = stats.get('losses', 0)
-                kd = round(kills / deaths, 2) if deaths > 0 else kills
-
-            embed = discord.Embed(title=f"{player_name} — Lifetime Stats", color=0x800080)
-            embed.add_field(name="Games Played", value=str(games), inline=False)
-            embed.add_field(name="K/D", value=str(kd), inline=False)
-            await message.channel.send(embed=embed)
-            print(f"[SUCCESS] Sent lifetime stats for {player_name}")
-    except Exception as e:
-        error_msg = str(e)
-        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
-            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
-        else:
-            await message.channel.send(f"⚠️ Error: {e}")
-
-async def send_rlstats_embeds(player_name, channel):
-    try:
-        player = await rl_client.find_player(player_name)
-        stats = player.stats
-
-        current = stats.season
-        lifetime = stats.lifetime
-
-        current_win_pct = (current.wins / current.games_played * 100) if current.games_played else 0
-        lifetime_win_pct = (lifetime.wins / lifetime.games_played * 100) if lifetime.games_played else 0
-
-        cur_avg_goals = current.goals / current.games_played if current.games_played else 0
-        cur_avg_assists = current.assists / current.games_played if current.games_played else 0
-        cur_avg_saves = current.saves / current.games_played if current.games_played else 0
-        cur_avg_demos = current.demos / current.games_played if current.games_played else 0
-
-        life_avg_goals = lifetime.goals / lifetime.games_played if lifetime.games_played else 0
-        life_avg_assists = lifetime.assists / lifetime.games_played if lifetime.games_played else 0
-        life_avg_saves = lifetime.saves / lifetime.games_played if lifetime.games_played else 0
-        life_avg_demos = lifetime.demos / lifetime.games_played if lifetime.games_played else 0
-
-        embed_current = discord.Embed(
-            title=f"{player_name} — Rocket League (Current Season)",
-            color=0x7a5cff
-        )
-        embed_current.add_field(name="Rank", value=str(current.rank or "Unknown"), inline=True)
-        embed_current.add_field(name="Games Played", value=str(current.games_played), inline=True)
-        embed_current.add_field(name="Wins", value=str(current.wins), inline=True)
-        embed_current.add_field(name="Win %", value=f"{current_win_pct:.1f}%", inline=True)
-        embed_current.add_field(name="Avg Goals", value=f"{cur_avg_goals:.2f}", inline=True)
-        embed_current.add_field(name="Avg Assists", value=f"{cur_avg_assists:.2f}", inline=True)
-        embed_current.add_field(name="Avg Saves", value=f"{cur_avg_saves:.2f}", inline=True)
-        embed_current.add_field(name="Avg Demos", value=f"{cur_avg_demos:.2f}", inline=True)
-
-        embed_lifetime = discord.Embed(
-            title=f"{player_name} — Rocket League (Lifetime)",
-            color=0x9e7dff
-        )
-        embed_lifetime.add_field(name="Rank", value=str(lifetime.rank or "Unknown"), inline=True)
-        embed_lifetime.add_field(name="Games Played", value=str(lifetime.games_played), inline=True)
-        embed_lifetime.add_field(name="Wins", value=str(lifetime.wins), inline=True)
-        embed_lifetime.add_field(name="Win %", value=f"{lifetime_win_pct:.1f}%", inline=True)
-        embed_lifetime.add_field(name="Avg Goals", value=f"{life_avg_goals:.2f}", inline=True)
-        embed_lifetime.add_field(name="Avg Assists", value=f"{life_avg_assists:.2f}", inline=True)
-        embed_lifetime.add_field(name="Avg Saves", value=f"{life_avg_saves:.2f}", inline=True)
-        embed_lifetime.add_field(name="Avg Demos", value=f"{life_avg_demos:.2f}", inline=True)
-
-        await channel.send(embed=embed_current)
-        await channel.send(embed=embed_lifetime)
-        print(f"[SUCCESS] Sent Rocket League detailed stats for {player_name}")
-    except Exception as e:
-        await channel.send(f"⚠️ Error fetching Rocket League stats: {e}")
-        print(f"[ERROR] Rocket League stats fetch failed: {e}")
-
-async def handle_rl_log(message):
-    await message.channel.typing()
-    try:
-        player_name = message.content.split(' ', 1)[1]
-        player = await rl_client.find_player(player_name)
-        match_history = await player.get_match_history(limit=10)
-
-        if not match_history:
-            await message.channel.send("No Rocket League match history found for this player.")
-            return
-
-        description = ""
-        for i, match in enumerate(match_history, 1):
-            result = "✅ Win" if match.get('won') else "❌ Loss"
-            rank = match.get('rank', 'Unranked')
-            goals = match.get('goals', 0)
-            assists = match.get('assists', 0)
-            saves = match.get('saves', 0)
-            demos = match.get('demos', 0)
-
-            description += (
-                f"**Match {i} – {result}**\n"
-                f"Rank: `{rank}`\n"
-                f"Goals: `{goals}` | Assists: `{assists}` | Saves: `{saves}` | Demos: `{demos}`\n\n"
-            )
-
-        embed = discord.Embed(
-            title=f"Rocket League Match Log: {player_name}",
-            description=description.strip(),
-            color=discord.Color.orange()
-        )
-        await message.channel.send(embed=embed)
-
-    except Exception as e:
-        await message.channel.send(f"⚠️ Error fetching Rocket League match log: {e}")
-
-# FINAL EXECUTION
+        
+async def send_usage_instructions(channel):
+    embed = discord.Embed(
+        title="🐔 ChickenHawk Command Usage",
+        description="Use the following commands with a valid PUBG player name (replace <PlayerName> entirely):",
+        color=0x3498DB
+    )
+    embed.add_field(name="!pubgstats <PlayerName>", value="→ Shows stats for last 10 matches, season, and lifetime", inline=False)
+    embed.add_field(name="!pubglog <PlayerName>", value="→ Shows detailed log for last 10 matches", inline=False)
+    embed.add_field(name="!pubgsummary <PlayerName>", value="→ Shows stats + log", inline=False)
+    await channel.send(embed=embed)
+    
 if __name__ == '__main__':
-    print("Starting ChickenHawk bot...")
-    if not DISCORD_BOT_TOKEN:
-        raise ValueError("DISCORD_BOT_TOKEN is not set. Please set it in your environment variables.")
+    print("Starting PUBG bot...")
     client.run(DISCORD_BOT_TOKEN)
