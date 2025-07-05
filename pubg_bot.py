@@ -126,7 +126,33 @@ async def send_season_embed(player_name, message):
                 if 'data' not in data or not data['data']:
                     raise Exception(f"No data found for {player_name}.")
                 account_id = data['data'][0]['id']
-                    account_id_cache[player_name] = account_id
+                account_id_cache[player_name] = account_id
+            else:
+                account_id = account_id_cache[player_name]
+
+            async with session.get('https://api.pubg.com/shards/steam/seasons', headers=HEADERS) as resp:
+                season_data = await resp.json()
+                current_season = next((s['id'] for s in season_data['data'] if s['attributes']['isCurrentSeason']), None)
+
+            async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}/seasons/{current_season}', headers=HEADERS) as resp:
+                data = await resp.json()
+                stats = data['data']['attributes']['gameModeStats'].get('squad-fpp') or {}
+                games = stats.get('roundsPlayed', 0)
+                kills = stats.get('kills', 0)
+                deaths = stats.get('losses', 0)
+                kd = round(kills / deaths, 2) if deaths > 0 else kills
+
+            embed = discord.Embed(title=f"{player_name} — Current Season", color=0x3399FF)
+            embed.add_field(name="Games Played", value=str(games), inline=False)
+            embed.add_field(name="K/D", value=str(kd), inline=False)
+            await message.channel.send(embed=embed)
+            print(f"[SUCCESS] Sent season stats for {player_name}")
+    except Exception as e:
+        error_msg = str(e)
+        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
+            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
+        else:
+            await message.channel.send(f"⚠️ Error: {e}")
             else:
                 account_id = account_id_cache[player_name]
 
@@ -228,7 +254,29 @@ async def send_lifetime_embed(player_name, message):
                 if 'data' not in data or not data['data']:
                     raise Exception(f"No data found for {player_name}.")
                 account_id = data['data'][0]['id']
-                    account_id_cache[player_name] = account_id
+                account_id_cache[player_name] = account_id
+            else:
+                account_id = account_id_cache[player_name]
+
+            async with session.get(f'https://api.pubg.com/shards/steam/players/{account_id}/seasons/lifetime', headers=HEADERS) as resp:
+                data = await resp.json()
+                stats = data['data']['attributes']['gameModeStats'].get('squad-fpp') or {}
+                games = stats.get('roundsPlayed', 0)
+                kills = stats.get('kills', 0)
+                deaths = stats.get('losses', 0)
+                kd = round(kills / deaths, 2) if deaths > 0 else kills
+
+            embed = discord.Embed(title=f"{player_name} — Lifetime Stats", color=0x800080)
+            embed.add_field(name="Games Played", value=str(games), inline=False)
+            embed.add_field(name="K/D", value=str(kd), inline=False)
+            await message.channel.send(embed=embed)
+            print(f"[SUCCESS] Sent lifetime stats for {player_name}")
+    except Exception as e:
+        error_msg = str(e)
+        if "No data found" in error_msg or "Could not fetch player ID" in error_msg:
+            await message.channel.send(f"❌ No data found for player **{player_name}**. Make sure the name is correct.")
+        else:
+            await message.channel.send(f"⚠️ Error: {e}")
             else:
                 account_id = account_id_cache[player_name]
 
